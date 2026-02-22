@@ -1,5 +1,5 @@
 {
-  "buildCommand": "./gradlew :composeApp:composeCompatibilityBrowserDistribution",
+  "buildCommand": "JAVA_HOME=${JAVA_HOME_17_X64:-/usr/lib/jvm/java-17-amazon-corretto.x86_64} PATH=\"$JAVA_HOME/bin:$PATH\" ./gradlew :composeApp:composeCompatibilityBrowserDistribution",
   "outputDirectory": "composeApp/build/dist/composeWebCompatibility/productionExecutable",
   "rewrites": [
     {
