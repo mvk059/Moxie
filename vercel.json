@@ -1,5 +1,4 @@
 {
-  "framework": "other",
   "buildCommand": "./gradlew :composeApp:composeCompatibilityBrowserDistribution",
   "outputDirectory": "composeApp/build/dist/composeWebCompatibility/productionExecutable",
   "rewrites": [
@@ -33,4 +32,3 @@
     }
   ]
 }
-
