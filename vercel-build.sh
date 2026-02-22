@@ -17,4 +17,22 @@ if [ -z "$J17" ] || [ ! -x "$J17/bin/java" ]; then
   fi
 fi
 
-JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew --no-configuration-cache -Pkotlin.js.nodejs.download=false -Pkotlin.js.yarn=false :composeApp:composeCompatibilityBrowserDistribution
+# --- Node.js / npm ---
+NODE_DIR=".vercel/cache/nodejs"
+NODE_VERSION="22.13.1"
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "npm not found on PATH; bootstrapping Node.js ${NODE_VERSION}..."
+  if [ ! -x "$NODE_DIR/bin/npm" ]; then
+    mkdir -p "$NODE_DIR"
+    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+      | tar -xJ --strip-components=1 -C "$NODE_DIR"
+  fi
+  export PATH="$NODE_DIR/bin:$PATH"
+fi
+
+JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew \
+  --no-configuration-cache \
+  -Pkotlin.js.nodejs.download=false \
+  -Pkotlin.js.yarn=false \
+  :composeApp:composeCompatibilityBrowserDistribution
