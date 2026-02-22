@@ -96,3 +96,12 @@ android {
 dependencies {
     debugImplementation(libs.compose.uiTooling)
 }
+
+// On Vercel, let Kotlin download and manage its own Node.js.
+// GRADLE_USER_HOME is set to .vercel/cache/gradle-home in vercel-build.sh,
+// so Node.js is installed to .vercel/cache/gradle-home/nodejs and persisted between builds.
+if (System.getenv("VERCEL") == "1") {
+    rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsPlugin> {
+        rootProject.the<org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsEnvSpec>().download.set(true)
+    }
+}
