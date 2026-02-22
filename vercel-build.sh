@@ -8,9 +8,13 @@ if [ -z "$J17" ]; then
 fi
 
 if [ -z "$J17" ] || [ ! -x "$J17/bin/java" ]; then
-  echo "No valid JDK 17 found"
-  find /usr/lib/jvm -maxdepth 2 -type f -name java 2>/dev/null || true
-  exit 1
+  echo "No system JDK 17 found; bootstrapping Temurin 17..."
+  J17=".vercel/cache/jdk17"
+  if [ ! -x "$J17/bin/java" ]; then
+    mkdir -p "$J17"
+    curl -fsSL "https://api.adoptium.net/v3/binary/latest/17/ga/linux/x64/jdk/hotspot/normal/eclipse" \
+      | tar -xz --strip-components=1 -C "$J17"
+  fi
 fi
 
 JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew :composeApp:composeCompatibilityBrowserDistribution
