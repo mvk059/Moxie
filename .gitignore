@@ -53,3 +53,6 @@ api-*.json
 
 # Vercel
 .vercel
+
+# Kotlin JS / Wasm lock state
+kotlin-js-store/
