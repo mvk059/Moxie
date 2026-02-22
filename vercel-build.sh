@@ -39,17 +39,38 @@ if [ -n "$_libatomic" ] && [ "$(basename "$_libatomic")" != "libatomic.so.1" ]; 
   _libatomic="$LIBATOMIC_CACHE/libatomic.so.1"
 fi
 
-# Not found anywhere on the system — download from the Amazon Linux 2 repo.
+# Not found anywhere on the system — install/download from the Amazon Linux 2 repo.
 if [ -z "$_libatomic" ] && [ ! -f "$LIBATOMIC_CACHE/libatomic.so.1" ]; then
-  echo "libatomic.so.1 not found; bootstrapping from Amazon Linux 2 repo..."
+  echo "libatomic.so.1 not found; bootstrapping..."
   mkdir -p "$LIBATOMIC_CACHE"
-  _tmp="$(mktemp -d)"
-  _repo="https://packages.us-east-1.amazonaws.com/2/core/latest/x86_64"
 
-  # Parse the yum primary.xml.gz metadata with Python to get the RPM path.
-  _href="$(curl -fsSL "${_repo}/repodata/primary.xml.gz" | python3 - <<'PYEOF'
+  # ── Layer 1: yum install (canonical approach for AL2) ───────────────────────
+  if command -v yum >/dev/null 2>&1; then
+    echo "Trying yum install libatomic..."
+    if yum install -y libatomic 2>/dev/null; then
+      _libatomic="$(find /usr/lib64 /usr/lib -maxdepth 4 -name 'libatomic.so.1*' 2>/dev/null | head -n 1 || true)"
+      [ -n "$_libatomic" ] && echo "yum install succeeded: $_libatomic"
+    fi
+  fi
+
+  # ── Layer 2: CDN mirror list + metadata parsing ────────────────────────────
+  if [ -z "$_libatomic" ] && [ ! -f "$LIBATOMIC_CACHE/libatomic.so.1" ]; then
+    echo "yum unavailable or failed; trying CDN mirror..."
+    _tmp="$(mktemp -d)"
+    _mirror=""
+
+    # Fetch a working mirror URL from the official CDN mirror list.
+    _mirror="$(curl -fsSL "https://cdn.amazonlinux.com/2/core/2.0/x86_64/mirror.list" 2>/dev/null \
+      | head -n 1 | tr -d '[:space:]' || true)"
+
+    if [ -n "$_mirror" ]; then
+      # Parse repodata/primary.xml.gz to find the RPM href.
+      _href="$(curl -fsSL "${_mirror}repodata/primary.xml.gz" | python3 - <<'PYEOF'
 import sys, gzip, xml.etree.ElementTree as ET
-root = ET.fromstring(gzip.decompress(sys.stdin.buffer.read()))
+data = sys.stdin.buffer.read()
+if not data:
+    sys.exit(0)
+root = ET.fromstring(gzip.decompress(data))
 ns = {'r': 'http://linux.duke.edu/metadata/common'}
 for p in root.findall('r:package', ns):
     n = p.find('r:name', ns)
@@ -59,20 +80,47 @@ for p in root.findall('r:package', ns):
             print(loc.get('href', ''))
         break
 PYEOF
-  2>/dev/null || true)"
+      2>/dev/null || true)"
 
-  if [ -n "$_href" ]; then
-    curl -fsSL "${_repo}/${_href}" -o "$_tmp/libatomic.rpm"
-    rpm2cpio "$_tmp/libatomic.rpm" | (cd "$_tmp" && cpio -id 2>/dev/null) || true
-    _sofile="$(find "$_tmp" -name 'libatomic.so.1*' | head -n 1 || true)"
-    if [ -n "$_sofile" ]; then
-      cp "$_sofile" "$LIBATOMIC_CACHE/"
-      _bn="$(basename "$_sofile")"
-      [ "$_bn" != "libatomic.so.1" ] && \
-        ln -sf "$_bn" "$LIBATOMIC_CACHE/libatomic.so.1" || true
+      if [ -n "$_href" ]; then
+        echo "Found RPM: ${_mirror}${_href}"
+        curl -fsSL "${_mirror}${_href}" -o "$_tmp/libatomic.rpm"
+        rpm2cpio "$_tmp/libatomic.rpm" | (cd "$_tmp" && cpio -id 2>/dev/null) || true
+        _sofile="$(find "$_tmp" -name 'libatomic.so.1*' | head -n 1 || true)"
+        if [ -n "$_sofile" ]; then
+          cp "$_sofile" "$LIBATOMIC_CACHE/"
+          _bn="$(basename "$_sofile")"
+          [ "$_bn" != "libatomic.so.1" ] && \
+            ln -sf "$_bn" "$LIBATOMIC_CACHE/libatomic.so.1" || true
+          echo "CDN mirror download succeeded."
+        fi
+      fi
     fi
+    rm -rf "$_tmp"
   fi
-  rm -rf "$_tmp"
+
+  # ── Layer 3: Hardcoded direct RPM URL (last resort) ────────────────────────
+  if [ -z "$_libatomic" ] && [ ! -f "$LIBATOMIC_CACHE/libatomic.so.1" ]; then
+    echo "Mirror metadata failed; trying direct RPM URL..."
+    _tmp="$(mktemp -d)"
+    _direct="https://cdn.amazonlinux.com/2/core/2.0/x86_64/mirror.list"
+    # Resolve a mirror and try a known RPM path pattern.
+    _base="$(curl -fsSL "$_direct" 2>/dev/null | head -n 1 | tr -d '[:space:]' || true)"
+    _fallback_url="${_base:-https://cdn.amazonlinux.com/2/core/latest/x86_64/}Packages/libatomic-7.3.1-17.amzn2.x86_64.rpm"
+
+    if curl -fsSL "$_fallback_url" -o "$_tmp/libatomic.rpm" 2>/dev/null; then
+      rpm2cpio "$_tmp/libatomic.rpm" | (cd "$_tmp" && cpio -id 2>/dev/null) || true
+      _sofile="$(find "$_tmp" -name 'libatomic.so.1*' | head -n 1 || true)"
+      if [ -n "$_sofile" ]; then
+        cp "$_sofile" "$LIBATOMIC_CACHE/"
+        _bn="$(basename "$_sofile")"
+        [ "$_bn" != "libatomic.so.1" ] && \
+          ln -sf "$_bn" "$LIBATOMIC_CACHE/libatomic.so.1" || true
+        echo "Direct RPM download succeeded."
+      fi
+    fi
+    rm -rf "$_tmp"
+  fi
 fi
 
 # Pick up whatever we found or built.
