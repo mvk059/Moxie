@@ -28,13 +28,11 @@ fun CmpPortalApp(
                 if (project == null) {
                     NotFoundScreen(
                         attemptedPath = projectPath(screen.slug),
-                        onGoHome = { onNavigateToPath("/") },
                     )
                 } else {
                     ProjectDetailScreen(
                         project = project,
                         embedMode = route.embedMode,
-                        onBackHome = { onNavigateToPath("/") },
                     )
                 }
             }
@@ -42,7 +40,6 @@ fun CmpPortalApp(
             is CmpRoute.Screen.NotFound -> {
                 NotFoundScreen(
                     attemptedPath = screen.path,
-                    onGoHome = { onNavigateToPath("/") },
                 )
             }
         }
