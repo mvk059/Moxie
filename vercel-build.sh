@@ -17,4 +17,4 @@ if [ -z "$J17" ] || [ ! -x "$J17/bin/java" ]; then
   fi
 fi
 
-JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew :composeApp:composeCompatibilityBrowserDistribution
+JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew -Pkotlin.js.nodejs.download=false :composeApp:composeCompatibilityBrowserDistribution
