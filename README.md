@@ -30,3 +30,4 @@ Iframe mode posts resize updates to parent:
 ```text
 {"type":"moxie-cmp:resize","slug":"<slug>","height":<number>}
 ```
+
