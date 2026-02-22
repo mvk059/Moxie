@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 
+# --- JDK 17 ---
 J17="${JAVA_HOME_17_X64:-}"
 
 if [ -z "$J17" ]; then
@@ -17,22 +18,15 @@ if [ -z "$J17" ] || [ ! -x "$J17/bin/java" ]; then
   fi
 fi
 
-# --- Node.js / npm ---
-NODE_DIR=".vercel/cache/nodejs"
-NODE_VERSION="22.13.1"
+export JAVA_HOME="$J17"
+export PATH="$JAVA_HOME/bin:$PATH"
 
-if ! command -v npm >/dev/null 2>&1; then
-  echo "npm not found on PATH; bootstrapping Node.js ${NODE_VERSION}..."
-  if [ ! -x "$NODE_DIR/bin/npm" ]; then
-    mkdir -p "$NODE_DIR"
-    curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
-      | tar -xJ --strip-components=1 -C "$NODE_DIR"
-  fi
-  export PATH="$NODE_DIR/bin:$PATH"
-fi
+# Route Gradle's user home into Vercel's persistent cache so Kotlin's
+# managed Node.js installation is preserved between builds.
+export GRADLE_USER_HOME=".vercel/cache/gradle-home"
 
-JAVA_HOME="$J17" PATH="$JAVA_HOME/bin:$PATH" ./gradlew \
+./gradlew \
   --no-configuration-cache \
-  -Pkotlin.js.nodejs.download=false \
+  -Pkotlin.js.nodejs.download=true \
   -Pkotlin.js.yarn=false \
   :composeApp:composeCompatibilityBrowserDistribution
